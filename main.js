@@ -17,9 +17,44 @@ ejs.data('config', env);
 
 let win;
 
+const isDev = require('electron-is-dev');
+
+function checkUpdate(){
+  win = new BrowserWindow({
+    width: 300,
+    height: 125,
+    title:"Launcher 2040 - Check for updates",
+    icon: path.join(__dirname, env.SERVER_ICON),
+    frame: false,
+    webPreferences: {
+      nodeIntegration: true,
+      enableRemoteModule: true,
+      contextIsolation: false,
+    }
+  });
+  win.setResizable(true);
+  win.loadURL(url.format({
+    pathname: path.join(__dirname, '/html/update.html'),
+    protocol: 'file:',
+    slashes: true
+  }));
+
+  win.on('closed', () => {
+    win = null;
+  });
+
+  autoUpdater.checkForUpdates();
+  //sendStatusToWindow("Check for updates");
+
+}
+
 function createWindow () {
-    const win = new BrowserWindow({
-        show: false,
+  if(!isDev){
+    var win2 = win;
+  }
+
+  win = new BrowserWindow({
+        //show: false,
         width: env.LAUNCHER_WIDTH,
         height: env.LAUNCHER_HEIGHT,
         minWidth: 600,
@@ -33,7 +68,14 @@ function createWindow () {
         }
     });
 
-    win.once('ready-to-show', () => win.show());
+    //win.once('ready-to-show', () => win.show());
+    win.on('closed', () => {
+      win = null;
+    });
+  
+    if(!isDev){
+      win2.close();
+    }
 
     win.setMenuBarVisibility(false);
     win.setAspectRatio(env.LAUNCHER_WIDTH / env.LAUNCHER_HEIGHT);
@@ -63,30 +105,20 @@ function createWindow () {
             },
           },
         { type: 'separator' },
-        { label: 'Verifique se há atualizações', click: menuItem => autoUpdater.checkForUpdates(), },
-        { type: 'separator' },
         { label: `Discord | ${env.SERVER_NAME}`, click() { open(`${env.SERVER_DISCORD}`); } },
         { type: 'separator' },
         { label: 'Sair do Launcher', click() { app.quit() } },
         { type: 'separator' },
     ])
     appTray.setContextMenu(contextMenu)
-    win.webContents.once('dom-ready', () => {
-        //log.info('Bootstrap window is ready.')
-        win.show()
-        autoUpdater.checkForUpdates()
-        appTray.on('click', () => {
-            win.isVisible() ? win.hide() : win.show()
-        })
-    })
 }
 
-app.whenReady().then(() => {
+app.on('ready', function(){
+  if(isDev){
     createWindow();
-
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+  }else{
+    checkUpdate();
+  }
 });
 
 app.on('window-all-closed', function () {
@@ -119,21 +151,6 @@ ipcMain.on('minimize', () => {
     // or alternatively: win.isVisible() ? win.hide() : win.show()
 });
 
-/*Checking updates just after app launch and also notify for the same*/
-/*app.on("ready", function() {
-  autoUpdater.checkForUpdates();
-});*/
-
-app.on("ready", () => {
-	process.on(
-		"uncaughtException",
-		Alert.uncaughtException(false, err => {
-			console.error("Uncaught Exception:", err);
-			app.quit();
-		}, true, true)
-	);
-});
-
 ipcMain.on('app_version', (event) => {
   event.sender.send('app_version', { version: app.getVersion() });
 });
@@ -141,45 +158,32 @@ ipcMain.on('app_version', (event) => {
 ipcMain.on("updates-check-and-download", event => {
     // This will immediately download an update, then install when the
     // app quits.
-    log.info("Starting check for updates (with auto-download if any)");
+    //log.info("Starting check for updates (with auto-download if any)");
     autoUpdater.autoDownload = true;
     autoUpdater.checkForUpdatesAndNotify();
   });
 
   ipcMain.on("updates-check", event => {
-    log.info("Starting check for updates (without auto-download)");
+    //log.info("Starting check for updates (without auto-download)");
     autoUpdater.autoDownload = false;
     autoUpdater.checkForUpdates();
   });
 
-  function sendUpdateStatus(status) {
-    log.info(status);
-    if (win) win.webContents.send("update-status", status);
+  function updateControl(type,value){
+    win.webContents.send(type, value);
   }
+
   autoUpdater.on("checking-for-update", () => {
-    sendUpdateStatus({
-      message: "Checking for update...",
-      status: "checking-for-update"
-    });
+    updateControl("checking",null);
   });
   autoUpdater.on("update-available", info => {
-    sendUpdateStatus({
-      message: "Update available.",
-      status: "update-available"
-    });
+    updateControl("found",null);
   });
   autoUpdater.on("update-not-available", info => {
-    sendUpdateStatus({
-      message: "Update not available.",
-      status: "update-not-available"
-    });
+    createWindow();
   });
   autoUpdater.on("error", err => {
-    sendUpdateStatus({
-      message: "Error in auto-updater. " + err,
-      status: "error",
-      err
-    });
+    createWindow();
   });
   autoUpdater.on("download-progress", progressObj => {
     let logMessage = "Download speed: " + progressObj.bytesPerSecond;
@@ -191,21 +195,10 @@ ipcMain.on("updates-check-and-download", event => {
       "/" +
       progressObj.total +
       ")";
-    sendUpdateStatus({
-      message: logMessage,
-      status: "download-progress",
-      bytesPerSecond: progressObj.bytesPerSecond,
-      percent: progressObj.percent,
-      transferred: progressObj.transferred,
-      total: progressObj.total
-    });
+    updateControl("download",progressObj.percent);
+    //checkUpdate()
   });
   autoUpdater.on("update-downloaded", info => {
-    sendUpdateStatus({
-      message: "Update downloaded",
-      status: "update-downloaded",
-      info
-    });
     autoUpdater.quitAndInstall();
   });
 
