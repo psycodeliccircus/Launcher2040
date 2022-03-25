@@ -1,0 +1,77 @@
+<html>
+    <head>
+        <title>VGS City - Checking for updates</title>
+        <style>
+            .loading h1{
+                font-family: Montserrat,Arial,Helvetica,Verdana;
+                font-size: 20px;
+                color:white;
+                font-weight: 300;
+                text-align: center;
+                margin:0px;
+            }
+            html{
+                background: white;
+            }
+            body{
+                margin:0px;
+                padding:0px;
+                width:100%;
+                height:100%;
+                background-color: #121924;
+            }
+            .loading{
+                position: relative;
+                height:100%;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                padding:20px;
+                box-sizing: border-box;
+                justify-content: center;
+                align-items: center;
+            }
+            .loading progress{
+                height:7px;
+                width:100%;
+                margin-top:15px;
+            }
+            .bar{
+                display: flex;
+                flex-direction: column;
+                width:100%;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="loading">
+            <h1 id="status">Checking for updates...</h1>
+            <div class="bar">
+                <progress id="bar" min="0" max="100"></progress>
+            </div>
+        </div>
+        <script>
+            const $ = require('jquery');
+            const {ipcRenderer} = require('electron');
+            ipcRenderer.on('checking', function(event, val) {
+                $('#status').text("Checking for updates...");
+            })
+
+            /*ipcRenderer.on('found', function(event, val) {
+                $('#status').text("New version found");
+            })*/
+
+            var download = 0;
+
+            ipcRenderer.on('download', function(event, val) {
+                if(download == 0 && val == 100){
+                    //Initial Download
+                }else{
+                    download = parseFloat(val).toFixed(2)
+                    $('#status').text("Downloading Files - " + download + "%");
+                    $("#bar").val(download);
+                }
+            })
+        </script>
+    </body>
+</html>
