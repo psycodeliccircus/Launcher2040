@@ -45,7 +45,7 @@
     </head>
     <body>
         <div class="loading">
-            <h1 id="status">Checking for updates...</h1>
+            <h1 id="status">Verificando atualizações....</h1>
             <div class="bar">
                 <progress id="bar" min="0" max="100"></progress>
             </div>
@@ -54,12 +54,12 @@
             const $ = require('jquery');
             const {ipcRenderer} = require('electron');
             ipcRenderer.on('checking', function(event, val) {
-                $('#status').text("Checking for updates...");
+                $('#status').text("Verificando atualizações...");
             })
 
-            /*ipcRenderer.on('found', function(event, val) {
-                $('#status').text("New version found");
-            })*/
+            ipcRenderer.on('found', function(event, val) {
+                $('#status').text("Nova versão encontrada");
+            })
 
             var download = 0;
 
@@ -73,6 +73,5 @@
                 }
             })
         </script>
-        <script src="js/renderer.js"></script>
     </body>
 </html>

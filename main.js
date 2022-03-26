@@ -104,6 +104,8 @@ function createWindow () {
               dialog.showMessageBox(options);
             },
           },
+         // { type: 'separator' },
+        //{ label: 'Verifique se há atualizações', click: menuItem => checkUpdate(), },
         { type: 'separator' },
         { label: `Discord | ${env.SERVER_NAME}`, click() { open(`${env.SERVER_DISCORD}`); } },
         { type: 'separator' },
@@ -120,6 +122,11 @@ app.on('ready', function(){
     checkUpdate();
   }
 });
+
+// before the app is terminated, clear both timers
+app.on('before-quit', () => {
+  clearInterval(progressInterval)
+})
 
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
@@ -195,12 +202,27 @@ ipcMain.on("updates-check-and-download", event => {
       "/" +
       progressObj.total +
       ")";
-    updateControl("download",progressObj.percent);
+    updateControl("download",null);
     //checkUpdate()
   });
+
+  autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    const dialogOpts = {
+      type: 'info',
+      buttons: ['Restart', 'Mais tarde'],
+      title: 'Atualização do aplicativo',
+      message: process.platform === 'win32' ? releaseNotes : releaseName,
+      detail: 'Uma nova versão foi baixada. Reinicie o aplicativo para aplicar as atualizações.'
+    }
+  
+    dialog.showMessageBox(dialogOpts).then((returnValue) => {
+      if (returnValue.response === 0) autoUpdater.quitAndInstall()
+    })
+  })
+  /*
   autoUpdater.on("update-downloaded", info => {
     autoUpdater.quitAndInstall();
-  });
+  });*/
 
   function handleSquirrelEvent(application) {
     if (process.argv.length === 1) {
